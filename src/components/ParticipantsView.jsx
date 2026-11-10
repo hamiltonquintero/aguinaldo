@@ -228,7 +228,7 @@ export default function ParticipantsView({
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((p) => {
+          {filtered.map((p, idx) => {
             const exclusionsNames = p.exclusions
               ?.map((eId) => participants.find((x) => x.id === eId)?.name)
               .filter(Boolean);
@@ -236,7 +236,8 @@ export default function ParticipantsView({
             return (
               <div
                 key={p.id}
-                className="group relative rounded-2xl bg-[#0f241c]/80 hover:bg-[#133025] border border-emerald-800/50 hover:border-christmas-gold/40 p-5 transition-all duration-300 shadow-lg flex flex-col justify-between"
+                className="group relative rounded-2xl glass-card card-tilt stagger-in border border-emerald-800/50 hover:border-christmas-gold/60 p-5 transition-all duration-300 shadow-lg flex flex-col justify-between"
+                style={{ animationDelay: `${idx * 0.05}s` }}
               >
                 <div>
                   <div className="flex items-start justify-between gap-2 mb-2">

@@ -1,86 +1,64 @@
 import React, { useState } from 'react';
-import { 
-  Gift, Share2, Copy, Check, MessageSquare, Printer, 
-  Smartphone, Lock, Unlock, Eye, Sparkles, ExternalLink, HelpCircle
+import {
+  Share2, Copy, Check, MessageSquare, Printer,
+  Sparkles, Gift, AlertTriangle, RefreshCw, ExternalLink,
+  CheckCircle2, Lock, Info, Eye,
 } from 'lucide-react';
-import { encodeGroupPackage, encodeSecretTicket } from '../utils/raffle';
 import { sound } from '../utils/sound';
 
 export default function SecretDeliveryView({
   raffleResults,
   eventConfig,
-  onOpenGiftModal,
-  onOpenGroupPreview,
+  publishedEvent,     // { slug, adminToken } | null
+  isPublishing,
+  publishError,
+  onPublishRaffle,    // () => Promise
+  getEventUrl,        // (slug) => string
+  onGoToAdmin,        // () => void  — abre el panel de admin
+  onPreviewGroup,     // () => void  — preview en el mismo browser
 }) {
-  const [activeTab, setActiveTab] = useState('groupLink'); // 'groupLink' | 'individual' | 'print'
-  const [requirePin, setRequirePin] = useState(false);
-  const [copiedGroup, setCopiedGroup] = useState(false);
-  const [copiedIndividualId, setCopiedIndividualId] = useState(null);
+  const [activeTab, setActiveTab] = useState('share'); // 'share' | 'print'
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedMsg, setCopiedMsg] = useState(false);
 
-  // Generate the Single Group Link (Self-contained in the URL hash!)
-  const getGroupLink = () => {
-    const hash = encodeGroupPackage(raffleResults, eventConfig, requirePin);
-    const baseUrl = window.location.origin + window.location.pathname;
-    return `${baseUrl}#group=${hash}`;
-  };
+  const eventUrl = publishedEvent ? getEventUrl(publishedEvent.slug) : '';
 
-  const getGroupWhatsAppMessage = () => {
-    const link = getGroupLink();
+  // ── Mensaje WhatsApp ──────────────────────────────────────
+  const getWhatsAppMessage = () => {
     let msg = `🎄 *¡Hola a todos! Ya está listo nuestro sorteo de ${eventConfig.title}* 🎅✨\n\n`;
-    msg += `Como estamos lejos, hicimos este sistema interactivo para que cada uno pueda destapar su regalo desde su celular:\n\n`;
-    msg += `👉 Entren a este enlace único:\n${link}\n\n`;
+    msg += `Hicimos un sistema interactivo para que cada uno descubra su amigo secreto desde su celular:\n\n`;
+    msg += `👉 Entren a este enlace:\n${eventUrl}\n\n`;
     msg += `1️⃣ Busca tu nombre en la lista.\n`;
-    if (requirePin) {
-      msg += `2️⃣ Ingresa tu PIN de 4 dígitos (los últimos 4 dígitos de tu número de celular).\n`;
-    } else {
-      msg += `2️⃣ Confirma que eres tú y toca la caja de regalo.\n`;
-    }
-    msg += `3️⃣ ¡Se abrirá la animación con tu Amigo Secreto y sus sugerencias!\n\n`;
-    if (eventConfig.date) msg += `📅 *Fecha de entrega:* ${eventConfig.date} ${eventConfig.time}\n`;
+    msg += `2️⃣ Si es tu primera vez, crea tu PIN secreto de 4 a 6 dígitos (¡solo tú lo sabes!).\n`;
+    msg += `3️⃣ ¡Se abre la animación con tu Amigo Secreto!\n\n`;
+    msg += `🔒 *Sistema privado:* El servidor solo te muestra tu resultado. Nadie puede ver el de otro.\n\n`;
+    if (eventConfig.date) msg += `📅 *Fecha:* ${eventConfig.date} ${eventConfig.time || ''}\n`;
     if (eventConfig.budget) msg += `💰 *Presupuesto:* ${eventConfig.budget}\n`;
     if (eventConfig.rules) msg += `✨ *Regla:* ${eventConfig.rules}\n`;
-    msg += `\n🤫 _¡Recuerden destapar únicamente el suyo y guardar el secreto hasta Navidad!_ 🎁`;
+    msg += `\n🤫 _¡Recuerden que el PIN es personal e intransferible!_ 🎁`;
     return msg;
   };
 
-  const handleCopyGroupMessage = () => {
+  const handleCopyLink = () => {
     sound.playSparkle();
-    const msg = getGroupWhatsAppMessage();
-    navigator.clipboard.writeText(msg);
-    setCopiedGroup(true);
-    setTimeout(() => setCopiedGroup(false), 3000);
+    navigator.clipboard.writeText(eventUrl);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 3000);
   };
 
-  const handleShareGroupWhatsApp = () => {
+  const handleCopyMessage = () => {
     sound.playSparkle();
-    const msg = encodeURIComponent(getGroupWhatsAppMessage());
-    window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
+    navigator.clipboard.writeText(getWhatsAppMessage());
+    setCopiedMsg(true);
+    setTimeout(() => setCopiedMsg(false), 3000);
   };
 
-  // Individual ticket link
-  const getIndividualLink = (ticket) => {
-    const payload = {
-      giverName: ticket.giverName,
-      receiverName: ticket.receiverName,
-      receiverWishlist: ticket.receiverWishlist,
-      budget: eventConfig.budget,
-      date: `${eventConfig.date} - ${eventConfig.time}`,
-      eventTitle: eventConfig.title,
-    };
-    const hash = encodeSecretTicket(payload);
-    const baseUrl = window.location.origin + window.location.pathname;
-    return `${baseUrl}#reveal=${hash}`;
-  };
-
-  const handleCopyIndividual = (ticket) => {
+  const handleShareWhatsApp = () => {
     sound.playSparkle();
-    const link = getIndividualLink(ticket);
-    const text = `🎄 ¡Hola ${ticket.giverName}! Descubre quién te tocó en el sorteo de ${eventConfig.title} abriendo tu regalo aquí: ${link}`;
-    navigator.clipboard.writeText(text);
-    setCopiedIndividualId(ticket.giverId);
-    setTimeout(() => setCopiedIndividualId(null), 2500);
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(getWhatsAppMessage())}`, '_blank');
   };
 
+  // ── Sin sorteo todavía ────────────────────────────────────
   if (!raffleResults || raffleResults.length === 0) {
     return (
       <div className="text-center py-16 px-4 rounded-3xl bg-black/30 border border-emerald-800/60 max-w-lg mx-auto">
@@ -88,53 +66,32 @@ export default function SecretDeliveryView({
         <h3 className="font-serif text-2xl font-bold text-gold-gradient mb-2">
           Primero debes realizar el sorteo
         </h3>
-        <p className="text-slate-400 text-sm mb-4">
-          Dirígete a la pestaña "Sorteo Mágico" y presiona el botón para emparejar a los amigos secretos.
+        <p className="text-slate-400 text-sm">
+          Ve a la pestaña "Sorteo Mágico" y presiona el botón para emparejar a los amigos secretos.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Modes Navigation */}
-      <div className="flex flex-wrap items-center justify-center gap-2 p-1.5 rounded-2xl bg-black/40 border border-emerald-800/50 max-w-2xl mx-auto">
+    <div className="space-y-6 max-w-3xl mx-auto">
+
+      {/* ── Tabs ─────────────────────────────────────────── */}
+      <div className="flex items-center justify-center gap-2 p-1.5 rounded-2xl bg-black/40 border border-emerald-800/50">
         <button
-          onClick={() => {
-            sound.playClick();
-            setActiveTab('groupLink');
-          }}
-          className={`flex-1 min-w-[170px] py-2.5 px-4 rounded-xl text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition-all ${
-            activeTab === 'groupLink'
+          onClick={() => { sound.playClick(); setActiveTab('share'); }}
+          className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+            activeTab === 'share'
               ? 'bg-gradient-to-r from-emerald-600 to-emerald-800 text-white shadow-lg'
               : 'text-slate-300 hover:text-white hover:bg-white/5'
           }`}
         >
           <Share2 className="w-4 h-4 text-christmas-gold" />
-          Enlace Único de Grupo (WhatsApp)
+          Compartir por WhatsApp
         </button>
-
         <button
-          onClick={() => {
-            sound.playClick();
-            setActiveTab('individual');
-          }}
-          className={`flex-1 min-w-[150px] py-2.5 px-4 rounded-xl text-xs md:text-sm font-semibold flex items-center justify-center gap-2 transition-all ${
-            activeTab === 'individual'
-              ? 'bg-gradient-to-r from-christmas-red to-red-700 text-white shadow-lg'
-              : 'text-slate-300 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <MessageSquare className="w-4 h-4" />
-          Enlaces Individuales
-        </button>
-
-        <button
-          onClick={() => {
-            sound.playClick();
-            setActiveTab('print');
-          }}
-          className={`py-2.5 px-4 rounded-xl text-xs md:text-sm font-semibold flex items-center justify-center gap-2 transition-all ${
+          onClick={() => { sound.playClick(); setActiveTab('print'); }}
+          className={`py-2.5 px-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all ${
             activeTab === 'print'
               ? 'bg-gradient-to-r from-yellow-600 to-amber-700 text-white shadow-lg'
               : 'text-slate-300 hover:text-white hover:bg-white/5'
@@ -145,179 +102,169 @@ export default function SecretDeliveryView({
         </button>
       </div>
 
-      {/* TAB 1: SINGLE GROUP LINK (THE USER'S PRIMARY GOAL!) */}
-      {activeTab === 'groupLink' && (
-        <div className="max-w-3xl mx-auto space-y-6">
-          {/* Main Card */}
-          <div className="relative overflow-hidden rounded-3xl p-6 md:p-8 bg-gradient-to-b from-[#153427] via-[#0e2118] to-[#1a0a0f] border-2 border-christmas-gold/40 shadow-2xl">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
-              <div>
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-christmas-gold/20 text-yellow-300 text-xs font-bold uppercase tracking-wider mb-2">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  La solución perfecta para familias a distancia
-                </div>
-                <h3 className="font-serif text-2xl md:text-3xl font-extrabold text-gold-gradient">
-                  Un Solo Enlace para Todo el Grupo 📲
-                </h3>
-                <p className="text-xs md:text-sm text-slate-300 mt-1 max-w-xl">
-                  Comparte este único enlace en el grupo de WhatsApp. Cada familiar entrará desde su teléfono, seleccionará su nombre y destapará su regalo animado con música y confeti.
+      {/* ════════════════════════════════════════════════════
+          TAB: SHARE
+          ════════════════════════════════════════════════════ */}
+      {activeTab === 'share' && (
+        <div className="space-y-5">
+
+          {/* ── PASO 1: Publicar en el servidor ────────────── */}
+          <div className={`relative overflow-hidden rounded-3xl p-6 md:p-8 border-2 shadow-2xl transition-all ${
+            publishedEvent
+              ? 'bg-gradient-to-b from-emerald-950/80 to-[#0e2118] border-emerald-500/50'
+              : 'bg-gradient-to-b from-[#153427] via-[#0e2118] to-[#1a0a0f] border-christmas-gold/40'
+          }`}>
+
+            {/* Paso badge */}
+            <div className="flex items-center gap-3 mb-4">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm shadow-lg ${
+                publishedEvent ? 'bg-emerald-500 text-white' : 'bg-christmas-gold text-slate-900'
+              }`}>
+                {publishedEvent ? <CheckCircle2 className="w-5 h-5" /> : '1'}
+              </div>
+              <h3 className="font-serif text-xl md:text-2xl font-extrabold text-gold-gradient">
+                {publishedEvent ? '¡Sorteo publicado en el servidor!' : 'Publicar sorteo de forma segura'}
+              </h3>
+            </div>
+
+            {!publishedEvent ? (
+              <>
+                <p className="text-sm text-slate-300 mb-5 max-w-xl">
+                  Al publicar, los resultados se guardan en el servidor de forma privada.
+                  Cada familiar solo verá su resultado después de crear su propio PIN secreto.
+                  <strong className="text-christmas-gold"> Ni siquiera tú verás los resultados de los demás una vez publicado.</strong>
                 </p>
-              </div>
 
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 to-emerald-800 border-2 border-christmas-gold/50 flex items-center justify-center text-3xl shadow-xl shrink-0">
-                🎁
-              </div>
-            </div>
-
-            {/* PIN Security Toggle */}
-            <div className="p-4 rounded-2xl bg-black/40 border border-emerald-800/60 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-white/5 text-christmas-gold">
-                  {requirePin ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5 text-slate-400" />}
+                {/* Garantías */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+                  {[
+                    { icon: '🔐', title: 'PIN personal', desc: 'Cada quien crea su propio PIN la primera vez que entra.' },
+                    { icon: '🛡️', title: 'Sin trampa', desc: 'El servidor bloquea tras 5 intentos fallidos (30 min).' },
+                    { icon: '🤫', title: 'Solo tu resultado', desc: 'El servidor nunca envía los resultados de otros.' },
+                  ].map((g) => (
+                    <div key={g.title} className="p-3 rounded-2xl bg-black/30 border border-white/10 text-xs text-left">
+                      <span className="text-xl block mb-1">{g.icon}</span>
+                      <strong className="text-christmas-gold block mb-0.5">{g.title}</strong>
+                      <span className="text-slate-400">{g.desc}</span>
+                    </div>
+                  ))}
                 </div>
-                <div>
-                  <h4 className="font-bold text-slate-200 text-sm flex items-center gap-2">
-                    Protección con PIN de 4 dígitos
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-bold ${
-                      requirePin ? 'bg-emerald-800 text-emerald-200' : 'bg-slate-800 text-slate-400'
-                    }`}>
-                      {requirePin ? 'Activado' : 'Opcional (Confianza)'}
-                    </span>
-                  </h4>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    {requirePin 
-                      ? 'Cada persona debe ingresar los últimos 4 dígitos de su teléfono para abrirlo.' 
-                      : 'Modo confianza: cada quien confirma "Soy yo" para abrir su regalo.'}
-                  </p>
-                </div>
-              </div>
 
-              <button
-                onClick={() => setRequirePin(!requirePin)}
-                className={`px-4 py-2 rounded-xl font-bold text-xs transition-all shrink-0 ${
-                  requirePin
-                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                    : 'bg-white/10 hover:bg-white/20 text-slate-300 border border-white/10'
-                }`}
-              >
-                {requirePin ? 'Desactivar PIN' : 'Activar PIN de Seguridad'}
-              </button>
-            </div>
-
-            {/* Big Action Buttons */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-              <button
-                onClick={handleCopyGroupMessage}
-                className="py-4 px-6 rounded-2xl bg-gradient-to-r from-christmas-gold via-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-slate-950 font-black text-sm md:text-base shadow-xl flex items-center justify-center gap-2.5 transition-all transform hover:scale-[1.02] active:scale-95"
-              >
-                {copiedGroup ? (
-                  <>
-                    <Check className="w-5 h-5" />
-                    ¡Mensaje con Enlace Copiado!
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-5 h-5" />
-                    Copiar Mensaje para WhatsApp
-                  </>
-                )}
-              </button>
-
-              <button
-                onClick={handleShareGroupWhatsApp}
-                className="py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-black text-sm md:text-base shadow-xl flex items-center justify-center gap-2.5 transition-all transform hover:scale-[1.02] active:scale-95"
-              >
-                <MessageSquare className="w-5 h-5" />
-                Enviar Directo a WhatsApp
-              </button>
-            </div>
-
-            {/* Message Preview Box */}
-            <div className="p-4 rounded-2xl bg-black/50 border border-white/10">
-              <span className="text-[11px] font-semibold text-christmas-gold uppercase tracking-wider block mb-2">
-                Vista Previa del Mensaje que recibirán:
-              </span>
-              <pre className="text-xs text-slate-300 whitespace-pre-wrap font-sans bg-black/40 p-3 rounded-xl border border-white/5 max-h-48 overflow-y-auto">
-                {getGroupWhatsAppMessage()}
-              </pre>
-            </div>
-
-            {/* Test Link Button */}
-            <div className="mt-4 pt-4 border-t border-emerald-800/40 flex justify-between items-center text-xs">
-              <span className="text-slate-400">
-                ¿Quieres probar cómo lo verán ellos?
-              </span>
-              <button
-                onClick={onOpenGroupPreview}
-                className="text-christmas-gold hover:text-yellow-300 font-semibold flex items-center gap-1 underline"
-              >
-                <Eye className="w-4 h-4" /> Probar vista de familiar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 2: INDIVIDUAL LINKS (ALTERNATIVE) */}
-      {activeTab === 'individual' && (
-        <div className="space-y-4 max-w-3xl mx-auto">
-          <div className="text-center">
-            <h3 className="font-serif text-2xl font-bold text-gold-gradient mb-1">
-              Enlaces Individuales por Persona 👤
-            </h3>
-            <p className="text-xs md:text-sm text-slate-300">
-              Si prefieres enviar un mensaje privado a cada familiar por separado, aquí tienes el botón de cada uno:
-            </p>
-          </div>
-
-          <div className="space-y-2.5">
-            {raffleResults.map((ticket) => {
-              const isCopied = copiedIndividualId === ticket.giverId;
-              return (
-                <div
-                  key={ticket.giverId}
-                  className="rounded-2xl bg-[#0e2118]/80 border border-emerald-800/50 p-4 flex items-center justify-between gap-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl">🎁</span>
+                {publishError && (
+                  <div className="mb-4 p-3 rounded-2xl bg-red-950/80 border border-red-500/50 text-red-200 text-xs flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-400" />
                     <div>
-                      <h4 className="font-bold text-slate-100 text-sm">
-                        {ticket.giverName}
-                      </h4>
-                      {ticket.giverPhone && (
-                        <span className="text-xs text-emerald-400">{ticket.giverPhone}</span>
-                      )}
+                      <strong className="block">Error al publicar:</strong>
+                      {publishError}
                     </div>
                   </div>
+                )}
 
+                <button
+                  onClick={onPublishRaffle}
+                  disabled={isPublishing}
+                  className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-christmas-red via-red-600 to-christmas-red hover:from-red-500 hover:to-red-700 text-white font-black text-lg shadow-2xl flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02] active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+                >
+                  {isPublishing ? (
+                    <><RefreshCw className="w-5 h-5 animate-spin" /> Publicando...</>
+                  ) : (
+                    <><Gift className="w-5 h-5" /> Publicar Sorteo de Forma Segura 🔒</>
+                  )}
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Estado: ya publicado */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-5">
+                  <div className="flex-1 p-3 rounded-xl bg-black/40 border border-emerald-700/50 font-mono text-xs text-emerald-300 break-all">
+                    {eventUrl}
+                  </div>
                   <button
-                    onClick={() => handleCopyIndividual(ticket)}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                      isCopied
+                    onClick={handleCopyLink}
+                    className={`px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shrink-0 ${
+                      copiedLink
                         ? 'bg-emerald-600 text-white'
-                        : 'bg-white/10 hover:bg-white/20 text-slate-200'
+                        : 'bg-white/10 hover:bg-white/20 text-slate-200 border border-white/10'
                     }`}
                   >
-                    {isCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                    {isCopied ? '¡Copiado!' : 'Copiar Enlace'}
+                    {copiedLink ? <><Check className="w-4 h-4" /> Copiado</> : <><Copy className="w-4 h-4" /> Copiar link</>}
                   </button>
                 </div>
-              );
-            })}
+
+                {/* Botones de compartir */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                  <button
+                    onClick={handleCopyMessage}
+                    className="py-3.5 px-6 rounded-2xl bg-gradient-to-r from-christmas-gold via-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-slate-950 font-black text-sm shadow-xl flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02] active:scale-95"
+                  >
+                    {copiedMsg ? <><Check className="w-4 h-4" /> ¡Mensaje copiado!</> : <><Copy className="w-4 h-4" /> Copiar mensaje WhatsApp</>}
+                  </button>
+                  <button
+                    onClick={handleShareWhatsApp}
+                    className="py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-black text-sm shadow-xl flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02] active:scale-95"
+                  >
+                    <MessageSquare className="w-4 h-4" /> Enviar a WhatsApp
+                  </button>
+                </div>
+
+                {/* Vista previa del mensaje */}
+                <div className="p-4 rounded-2xl bg-black/50 border border-white/10 mb-4">
+                  <span className="text-[11px] font-semibold text-christmas-gold uppercase tracking-wider block mb-2">
+                    Vista previa del mensaje:
+                  </span>
+                  <pre className="text-xs text-slate-300 whitespace-pre-wrap font-sans bg-black/40 p-3 rounded-xl border border-white/5 max-h-48 overflow-y-auto">
+                    {getWhatsAppMessage()}
+                  </pre>
+                </div>
+
+                {/* Acciones adicionales */}
+                <div className="flex flex-wrap gap-3 pt-2 border-t border-emerald-800/40">
+                  <button
+                    onClick={onPreviewGroup}
+                    className="text-xs text-christmas-gold hover:text-yellow-300 font-semibold flex items-center gap-1.5 underline underline-offset-2"
+                  >
+                    <Eye className="w-3.5 h-3.5" /> Probar vista de familiar
+                  </button>
+                  <button
+                    onClick={onGoToAdmin}
+                    className="text-xs text-slate-400 hover:text-slate-200 font-semibold flex items-center gap-1.5 underline underline-offset-2"
+                  >
+                    <Lock className="w-3.5 h-3.5" /> Panel de administrador
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* ── PASO 2: indicaciones (siempre visibles) ──── */}
+          <div className="p-4 rounded-2xl bg-black/30 border border-emerald-800/40 flex items-start gap-3 text-xs text-slate-300">
+            <Info className="w-5 h-5 text-christmas-gold shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p><strong className="text-slate-200">¿Cómo funciona para tu familia?</strong></p>
+              <p>1. Comparte el link en el grupo de WhatsApp.</p>
+              <p>2. Cada familiar entra, busca su nombre y <strong>crea su PIN único</strong> (el primero en crearlo es el dueño de ese nombre).</p>
+              <p>3. El servidor verifica el PIN y revela <strong>solo su resultado</strong>.</p>
+              <p>4. Las veces siguientes, ingresan su PIN para volver a ver su amigo secreto.</p>
+            </div>
           </div>
         </div>
       )}
 
-      {/* TAB 3: PRINTABLE CARDS */}
+      {/* ════════════════════════════════════════════════════
+          TAB: PRINT
+          ════════════════════════════════════════════════════ */}
       {activeTab === 'print' && (
         <div className="space-y-6">
           <div className="text-center max-w-xl mx-auto no-print">
             <h3 className="font-serif text-2xl font-bold text-gold-gradient mb-1">
               Tarjetitas Navideñas Imprimibles 🖨️
             </h3>
+            <p className="text-xs text-slate-400 mb-3">
+              Para reuniones presenciales donde prefieras repartir papelitos físicos.
+            </p>
             <button
               onClick={() => window.print()}
-              className="mt-3 px-6 py-2.5 rounded-2xl bg-gradient-to-r from-yellow-600 to-amber-700 text-white font-bold text-sm shadow-xl flex items-center gap-2 mx-auto"
+              className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-yellow-600 to-amber-700 text-white font-bold text-sm shadow-xl flex items-center gap-2 mx-auto"
             >
               <Printer className="w-4 h-4" />
               Imprimir Tarjetas
@@ -332,15 +279,11 @@ export default function SecretDeliveryView({
               >
                 <div className="border-b border-dashed border-christmas-gold/40 pb-3 mb-3">
                   <span className="text-xs text-christmas-gold uppercase">Tarjeta #{idx + 1}</span>
-                  <h4 className="font-serif text-xl font-bold text-white mt-1">
-                    Para: {ticket.giverName}
-                  </h4>
+                  <h4 className="font-serif text-xl font-bold text-white mt-1">Para: {ticket.giverName}</h4>
                 </div>
                 <div>
                   <span className="text-xs text-emerald-400 font-bold uppercase">Tu Amigo Secreto:</span>
-                  <h3 className="text-2xl font-black text-gold-gradient my-1">
-                    {ticket.receiverName}
-                  </h3>
+                  <h3 className="text-2xl font-black text-gold-gradient my-1">{ticket.receiverName}</h3>
                   <p className="text-xs text-slate-300 italic">
                     {ticket.receiverWishlist || '¡Sorpréndele con mucho cariño navideño!'}
                   </p>

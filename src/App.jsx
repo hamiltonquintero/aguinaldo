@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import SnowEffect from './components/SnowEffect';
 import ChristmasLights from './components/ChristmasLights';
+import AmbientParticles from './components/AmbientParticles';
 import ParticipantsView from './components/ParticipantsView';
 import RaffleDrawView from './components/RaffleDrawView';
 import SecretDeliveryView from './components/SecretDeliveryView';
@@ -8,113 +9,110 @@ import AguinaldosGamesTab from './components/AguinaldosGamesTab';
 import GroupRevealView from './components/GroupRevealView';
 import GiftBoxModal from './components/GiftBoxModal';
 import EventSettingsModal from './components/EventSettingsModal';
-import { 
-  DEMO_PARTICIPANTS, 
-  DEMO_EVENT_CONFIG, 
-  generateRaffle, 
-  decodeSecretTicket,
-  decodeGroupPackage,
-  encodeGroupPackage
+import AdminPanel from './components/AdminPanel';
+import WelcomeScreen from './components/WelcomeScreen';
+import {
+  DEMO_PARTICIPANTS, DEMO_EVENT_CONFIG,
+  generateRaffle, decodeSecretTicket,
 } from './utils/raffle';
 import { sound } from './utils/sound';
-import { 
-  Users, Gift, Dice5, Volume2, VolumeX, Snowflake, 
-  Share2, Award, Sparkles, Settings 
+import { useRaffle } from './hooks/useRaffle';
+import {
+  Users, Gift, Dice5, Volume2, VolumeX, Snowflake,
+  Award, Settings, ShieldCheck, Music, MusicIcon,
 } from 'lucide-react';
 
-export default function App() {
-  // Navigation
-  const [activeTab, setActiveTab] = useState('participants'); // 'participants' | 'raffle' | 'delivery' | 'games'
+// Icono de música (lucide no tiene MusicOff, lo hacemos inline)
+const MusicOff = ({ className }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+    <line x1="2" y1="2" x2="22" y2="22"/>
+  </svg>
+);
+const MusicOn = ({ className }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+  </svg>
+);
 
-  // Settings & Toggles
-  const [snowActive, setSnowActive] = useState(true);
+export default function App() {
+  // ── Pantalla de bienvenida ────────────────────────────────
+  const [showWelcome, setShowWelcome] = useState(() => {
+    // No mostrar si viene de un link #event=
+    if (typeof window !== 'undefined' && window.location.hash.startsWith('#event=')) return false;
+    return !sessionStorage.getItem('aguinaldo_welcomed');
+  });
+
+  // ── Navegación ────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState('participants');
+
+  // ── Toggles ───────────────────────────────────────────────
+  const [snowActive,  setSnowActive]  = useState(true);
   const [audioActive, setAudioActive] = useState(true);
+  const [musicPlaying, setMusicPlaying] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  // Core Data with LocalStorage Persistence
+  // ── Datos del organizador ─────────────────────────────────
   const [eventConfig, setEventConfig] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aguinaldo_config');
-      return saved ? JSON.parse(saved) : DEMO_EVENT_CONFIG;
-    } catch {
-      return DEMO_EVENT_CONFIG;
-    }
+    try { return JSON.parse(localStorage.getItem('aguinaldo_config')) ?? DEMO_EVENT_CONFIG; }
+    catch { return DEMO_EVENT_CONFIG; }
   });
-
   const [participants, setParticipants] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aguinaldo_participants');
-      return saved ? JSON.parse(saved) : DEMO_PARTICIPANTS;
-    } catch {
-      return DEMO_PARTICIPANTS;
-    }
+    try { return JSON.parse(localStorage.getItem('aguinaldo_participants')) ?? DEMO_PARTICIPANTS; }
+    catch { return DEMO_PARTICIPANTS; }
   });
-
   const [raffleResults, setRaffleResults] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aguinaldo_raffle_results');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
+    try { return JSON.parse(localStorage.getItem('aguinaldo_raffle_results')) ?? null; }
+    catch { return null; }
   });
 
-  // Group Mode State (When opened via #group=... WhatsApp link)
-  const [groupPackageData, setGroupPackageData] = useState(null);
-
-  // Modal State for Secret Gift Opening
-  const [activeSecretData, setActiveSecretData] = useState(null);
+  const [giftModalData, setGiftModalData] = useState(null);
   const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
 
-  // Sync to localStorage
+  const raffle = useRaffle();
+  const [groupSlug, setGroupSlug] = useState(null);
+
+  // ── Sync localStorage ─────────────────────────────────────
   useEffect(() => {
-    try {
-      localStorage.setItem('aguinaldo_config', JSON.stringify(eventConfig));
-    } catch (e) {}
+    try { localStorage.setItem('aguinaldo_config', JSON.stringify(eventConfig)); } catch {}
   }, [eventConfig]);
-
   useEffect(() => {
-    try {
-      localStorage.setItem('aguinaldo_participants', JSON.stringify(participants));
-    } catch (e) {}
+    try { localStorage.setItem('aguinaldo_participants', JSON.stringify(participants)); } catch {}
   }, [participants]);
-
   useEffect(() => {
     try {
-      if (raffleResults) {
-        localStorage.setItem('aguinaldo_raffle_results', JSON.stringify(raffleResults));
-      } else {
-        localStorage.removeItem('aguinaldo_raffle_results');
-      }
-    } catch (e) {}
+      if (raffleResults) localStorage.setItem('aguinaldo_raffle_results', JSON.stringify(raffleResults));
+      else localStorage.removeItem('aguinaldo_raffle_results');
+    } catch {}
   }, [raffleResults]);
 
-  // Check URL Hash for #group= or #reveal=
+  // ── Hash URL ──────────────────────────────────────────────
   useEffect(() => {
-    const handleHashCheck = () => {
+    const handleHash = () => {
       const hash = window.location.hash;
-      if (hash && hash.startsWith('#group=')) {
-        const encoded = hash.replace('#group=', '');
-        const decoded = decodeGroupPackage(encoded);
-        if (decoded) {
-          setGroupPackageData(decoded);
-        }
-      } else if (hash && hash.startsWith('#reveal=')) {
-        const encoded = hash.replace('#reveal=', '');
-        const decoded = decodeSecretTicket(encoded);
-        if (decoded) {
-          setActiveSecretData(decoded);
-          setIsGiftModalOpen(true);
-        }
+      if (hash.startsWith('#event=')) {
+        const slug = hash.replace('#event=', '');
+        setGroupSlug(slug);
+        raffle.loadGroupBySlug(slug);
+      } else if (hash.startsWith('#reveal=')) {
+        const data = decodeSecretTicket(hash.replace('#reveal=', ''));
+        if (data) { setGiftModalData(data); setIsGiftModalOpen(true); }
+      } else {
+        setGroupSlug(null);
       }
     };
-
-    handleHashCheck();
-    window.addEventListener('hashchange', handleHashCheck);
-    return () => window.removeEventListener('hashchange', handleHashCheck);
+    handleHash();
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
   }, []);
 
-  // Handlers
+  // ── Handlers ──────────────────────────────────────────────
+  const handleEnterApp = () => {
+    sessionStorage.setItem('aguinaldo_welcomed', '1');
+    setShowWelcome(false);
+    sound.playSparkle();
+  };
+
   const handlePerformRaffle = () => {
     const results = generateRaffle(participants);
     setRaffleResults(results);
@@ -126,275 +124,300 @@ export default function App() {
     setParticipants(DEMO_PARTICIPANTS);
     setEventConfig(DEMO_EVENT_CONFIG);
     setRaffleResults(null);
+    raffle.clearPublishedEvent();
   };
 
   const handleToggleSound = () => {
     const next = sound.toggle();
     setAudioActive(next);
+    if (!next && musicPlaying) {
+      sound.stopMusic();
+      setMusicPlaying(false);
+    }
   };
 
-  const handleOpenGiftModal = (data) => {
-    setActiveSecretData(data);
-    setIsGiftModalOpen(true);
+  const handleToggleMusic = () => {
+    if (!audioActive) return; // música requiere audio activo
+    const playing = sound.toggleMusic();
+    setMusicPlaying(playing);
   };
 
-  const handlePreviewGroupMode = () => {
+  const handlePublishRaffle = async () => {
     if (!raffleResults) return;
-    const dummyPackage = {
-      title: eventConfig.title,
-      date: eventConfig.date,
-      time: eventConfig.time,
-      budget: eventConfig.budget,
-      location: eventConfig.location,
-      rules: eventConfig.rules,
-      requirePin: false,
-      members: raffleResults.map(r => ({
-        id: r.giverId,
-        name: r.giverName,
-        phone: r.giverPhone,
-        pin: r.giverPin || '',
-        match: r.receiverName,
-        wishlist: r.receiverWishlist,
-      })),
-    };
-    setGroupPackageData(dummyPackage);
+    const result = await raffle.publishRaffle(eventConfig, raffleResults);
+    if (result?.slug) sound.playSparkle();
   };
+
+  const handlePreviewGroup = () => {
+    if (!raffle.publishedEvent?.slug) return;
+    raffle.loadGroupBySlug(raffle.publishedEvent.slug);
+    setGroupSlug(raffle.publishedEvent.slug);
+    window.location.hash = `event=${raffle.publishedEvent.slug}`;
+  };
+
+  const handleExitGroupView = () => {
+    setGroupSlug(null);
+    raffle.resetPinFlow();
+    window.location.hash = '';
+  };
+
+  const handleGoToAdmin = () => {
+    setActiveTab('admin');
+    if (raffle.publishedEvent)
+      raffle.loadAdminStatus(raffle.publishedEvent.slug, raffle.publishedEvent.adminToken);
+  };
+
+  const isGroupView = !!groupSlug && !!raffle.groupEventData;
+
+  // ── Tabs config ───────────────────────────────────────────
+  const tabs = [
+    { id:'participants', label:'Familia',   shortLabel:'Familia',  icon:'👨‍👩‍👧‍👦', activeClass:'bg-emerald-700 text-white' },
+    { id:'raffle',       label:'Sorteo',    shortLabel:'Sorteo',   icon:'🎰', activeClass:'bg-christmas-red text-white' },
+    { id:'delivery',     label:'Repartir',  shortLabel:'Enviar',   icon:'📲', dot:!!raffleResults, activeClass:'bg-christmas-gold text-slate-950 font-bold' },
+    { id:'games',        label:'Juegos',    shortLabel:'Juegos',   icon:'🎲', activeClass:'bg-amber-600 text-white' },
+  ];
 
   return (
-    <div className="min-h-screen relative overflow-x-hidden flex flex-col bg-radial-vignette">
-      {/* Background Falling Snow Canvas */}
-      <SnowEffect active={snowActive} />
+    <>
+      {/* ── Pantalla de bienvenida ────────────────────────── */}
+      {showWelcome && <WelcomeScreen onEnter={handleEnterApp} />}
 
-      {/* Garland Christmas Lights along the top */}
-      <ChristmasLights />
+      <div
+        className="min-h-screen relative overflow-x-hidden flex flex-col"
+        style={{ background: '#060d14' }}
+      >
+        {/* Capas de fondo */}
+        <div className="night-sky" />
+        <div className="stars-layer" />
+        <SnowEffect active={snowActive} />
+        <AmbientParticles active={!isGroupView} count={12} />
+        <ChristmasLights />
 
-      {/* Main Header / Navigation */}
-      <header className="relative z-20 border-b border-emerald-900/60 bg-[#091512]/90 backdrop-blur-md">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3">
-          {/* Brand / Logo */}
-          <div
-            onClick={() => {
-              sound.playClick();
-              setGroupPackageData(null);
-              setActiveTab('participants');
-            }}
-            className="flex items-center gap-3 cursor-pointer group"
-          >
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-christmas-red to-red-600 flex items-center justify-center text-xl shadow-lg border border-christmas-gold/40 group-hover:scale-105 transition-transform">
-              🎁
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-serif font-black text-xl tracking-wide text-gold-gradient">
-                  Aguinaldo Navideño
-                </span>
-                <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-christmas-red/40 text-red-200 border border-christmas-red/50">
-                  Familiar
-                </span>
+        {/* ══════════════════════════════════════════════════
+            HEADER — responsive y mobile-first con glassmorphism
+            ══════════════════════════════════════════════════ */}
+        <header className="relative z-20 border-b border-emerald-900/50 glass-panel backdrop-blur-md safe-bottom">
+          <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
+
+            {/* Fila superior: logo + controles */}
+            <div className="flex items-center justify-between gap-2">
+              {/* Logo */}
+              <div
+                onClick={() => { sound.playClick(); handleExitGroupView(); setActiveTab('participants'); }}
+                className="flex items-center gap-2 cursor-pointer group flex-shrink-0"
+              >
+                <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-tr from-christmas-red to-red-600 flex items-center justify-center text-xl sm:text-2xl shadow-lg border-2 border-christmas-gold/60 group-hover:scale-105 transition-transform animate-float glow-red">
+                  🎁
+                </div>
+                <div className="hidden sm:block">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-serif font-black text-lg tracking-wide text-gold-gradient">Aguinaldo Navideño</span>
+                    <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-christmas-red/40 text-red-200 border border-christmas-red/50">Familiar</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400">Amigo Secreto & Juegos</p>
+                </div>
+                {/* Móvil: solo título corto */}
+                <span className="sm:hidden font-serif font-black text-sm text-gold-gradient">Aguinaldo 🎄</span>
               </div>
-              <p className="text-[11px] text-slate-400">
-                Amigo Secreto & Juegos Navideños
-              </p>
-            </div>
-          </div>
 
-          {/* Navigation Tabs (Only if not in Group Reveal mode) */}
-          {!groupPackageData ? (
-            <nav className="flex items-center gap-1 bg-black/40 p-1 rounded-2xl border border-emerald-800/40 text-xs font-semibold">
-              <button
-                onClick={() => {
-                  sound.playClick();
-                  setActiveTab('participants');
-                }}
-                className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 ${
-                  activeTab === 'participants'
-                    ? 'bg-emerald-700 text-white shadow'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                }`}
-              >
-                <Users className="w-3.5 h-3.5" />
-                <span>Participantes</span>
-                <span className="px-1.5 py-0.2 rounded-full bg-black/40 text-[10px]">
-                  {participants.length}
+              {/* Badge vista familiar (móvil) */}
+              {isGroupView && (
+                <span className="text-[10px] text-emerald-300 font-semibold px-2 py-1 rounded-full bg-emerald-950/80 border border-emerald-600/40 flex-1 text-center mx-2">
+                  📲 Vista Familiar
                 </span>
-              </button>
+              )}
 
-              <button
-                onClick={() => {
-                  sound.playClick();
-                  setActiveTab('raffle');
-                }}
-                className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 ${
-                  activeTab === 'raffle'
-                    ? 'bg-christmas-red text-white shadow'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                }`}
-              >
-                <Dice5 className="w-3.5 h-3.5 text-christmas-gold" />
-                <span>Sorteo Mágico</span>
-              </button>
+              {/* Controles rápidos */}
+              <div className="flex items-center gap-1.5">
+                {/* Música */}
+                <button
+                  onClick={handleToggleMusic}
+                  disabled={!audioActive}
+                  className={`p-2 rounded-xl border transition-all touch-ripple ${
+                    musicPlaying
+                      ? 'bg-christmas-red/30 border-christmas-red/50 text-red-300'
+                      : 'bg-black/40 border-white/10 text-slate-500'
+                  } disabled:opacity-30`}
+                  title={musicPlaying ? 'Parar música' : 'Tocar villancico'}
+                >
+                  {musicPlaying ? <MusicOn className="w-4 h-4" /> : <MusicOff className="w-4 h-4" />}
+                </button>
 
-              <button
-                onClick={() => {
-                  sound.playClick();
-                  setActiveTab('delivery');
-                }}
-                className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 ${
-                  activeTab === 'delivery'
-                    ? 'bg-christmas-gold text-slate-950 font-bold shadow'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                }`}
-              >
-                <Gift className="w-3.5 h-3.5" />
-                <span>Repartir (WhatsApp)</span>
-                {raffleResults && (
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <button
+                  onClick={handleToggleSound}
+                  className={`p-2 rounded-xl border transition-all touch-ripple ${
+                    audioActive
+                      ? 'bg-emerald-950/80 border-emerald-600/50 text-emerald-300'
+                      : 'bg-black/40 border-white/10 text-slate-500'
+                  }`}
+                >
+                  {audioActive ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                </button>
+
+                <button
+                  onClick={() => setSnowActive(s => !s)}
+                  className={`p-2 rounded-xl border transition-all touch-ripple hidden sm:flex ${
+                    snowActive
+                      ? 'bg-blue-950/80 border-blue-600/50 text-blue-300'
+                      : 'bg-black/40 border-white/10 text-slate-500'
+                  }`}
+                >
+                  <Snowflake className="w-4 h-4" />
+                </button>
+
+                {!isGroupView && (
+                  <button
+                    onClick={() => setIsSettingsOpen(true)}
+                    className="p-2 rounded-xl bg-black/40 hover:bg-white/10 border border-white/10 text-slate-300 transition-colors touch-ripple"
+                  >
+                    <Settings className="w-4 h-4 text-christmas-gold" />
+                  </button>
                 )}
-              </button>
 
-              <button
-                onClick={() => {
-                  sound.playClick();
-                  setActiveTab('games');
-                }}
-                className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 ${
-                  activeTab === 'games'
-                    ? 'bg-amber-600 text-white shadow'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                }`}
-              >
-                <Award className="w-3.5 h-3.5 text-yellow-300" />
-                <span>Juegos</span>
-              </button>
-            </nav>
-          ) : (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-emerald-300 font-semibold px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-600/40">
-                📲 Vista de WhatsApp Familiar
-              </span>
-              <button
-                onClick={() => setGroupPackageData(null)}
-                className="text-xs text-slate-300 hover:text-white px-3 py-1 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
-              >
-                Panel Organizador
-              </button>
+                {isGroupView && (
+                  <button
+                    onClick={handleExitGroupView}
+                    className="text-[11px] text-slate-300 hover:text-white px-2 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 transition-colors touch-ripple"
+                  >
+                    Admin
+                  </button>
+                )}
+              </div>
             </div>
-          )}
 
-          {/* Quick Controls: Snow, Audio, Settings */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleToggleSound}
-              className={`p-2 rounded-xl border transition-all ${
-                audioActive
-                  ? 'bg-emerald-950/80 border-emerald-600/50 text-emerald-300'
-                  : 'bg-black/40 border-white/10 text-slate-500'
-              }`}
-              title={audioActive ? 'Silenciar efectos navideños' : 'Activar efectos navideños'}
-            >
-              {audioActive ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-            </button>
+            {/* Fila inferior: tabs (solo en modo organizador) */}
+            {!isGroupView && (
+              <nav className="tabs-scroll mt-2 flex items-center gap-1 pb-0.5">
+                <div className="flex items-center gap-1 bg-black/40 p-1 rounded-2xl border border-emerald-800/40 text-xs font-semibold w-full sm:w-auto">
+                  {tabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => { sound.playClick(); setActiveTab(tab.id); }}
+                      className={`flex-1 sm:flex-none px-2.5 sm:px-3 py-2 sm:py-1.5 rounded-xl transition-all flex items-center justify-center sm:justify-start gap-1 sm:gap-1.5 touch-ripple whitespace-nowrap ${
+                        activeTab === tab.id
+                          ? tab.activeClass + ' shadow'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                      }`}
+                    >
+                      <span className="text-base sm:text-sm">{tab.icon}</span>
+                      <span className="hidden sm:inline">{tab.label}</span>
+                      <span className="sm:hidden text-[10px] font-bold">{tab.shortLabel}</span>
+                      {tab.dot && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
+                    </button>
+                  ))}
 
-            <button
-              onClick={() => setSnowActive(!snowActive)}
-              className={`p-2 rounded-xl border transition-all ${
-                snowActive
-                  ? 'bg-blue-950/80 border-blue-600/50 text-blue-300'
-                  : 'bg-black/40 border-white/10 text-slate-500'
-              }`}
-              title={snowActive ? 'Desactivar nieve' : 'Activar nieve'}
-            >
-              <Snowflake className="w-4 h-4" />
-            </button>
-
-            {!groupPackageData && (
-              <button
-                onClick={() => setIsSettingsOpen(true)}
-                className="p-2 rounded-xl bg-black/40 hover:bg-white/10 border border-white/10 text-slate-300 transition-colors"
-                title="Ajustes del evento"
-              >
-                <Settings className="w-4 h-4 text-christmas-gold" />
-              </button>
+                  {/* Admin tab */}
+                  {raffle.publishedEvent && (
+                    <button
+                      onClick={() => { sound.playClick(); handleGoToAdmin(); }}
+                      className={`flex-none px-2.5 sm:px-3 py-2 sm:py-1.5 rounded-xl transition-all flex items-center gap-1 sm:gap-1.5 touch-ripple ${
+                        activeTab === 'admin'
+                          ? 'bg-purple-700 text-white shadow'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                      }`}
+                    >
+                      <span className="text-base sm:text-sm">🛡️</span>
+                      <span className="hidden sm:inline text-xs">Admin</span>
+                    </button>
+                  )}
+                </div>
+              </nav>
             )}
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Main Container */}
-      <main className="relative z-10 flex-1 max-w-6xl w-full mx-auto px-4 py-6 md:py-8">
-        {/* If Group Reveal Mode is active (via #group= or preview) */}
-        {groupPackageData ? (
-          <GroupRevealView
-            groupData={groupPackageData}
-            onOpenGiftModal={handleOpenGiftModal}
-            onGoToAdmin={() => setGroupPackageData(null)}
-          />
-        ) : (
-          <>
-            {activeTab === 'participants' && (
-              <ParticipantsView
-                participants={participants}
-                onUpdateParticipants={setParticipants}
-                eventConfig={eventConfig}
-                onOpenSettings={() => setIsSettingsOpen(true)}
-                onLoadDemo={handleLoadDemo}
-              />
-            )}
+        {/* ══════════════════════════════════════════════════
+            CONTENIDO PRINCIPAL
+            ══════════════════════════════════════════════════ */}
+        <main className="relative z-10 flex-1 max-w-6xl w-full mx-auto px-3 sm:px-4 py-4 sm:py-6 md:py-8">
 
-            {activeTab === 'raffle' && (
-              <RaffleDrawView
-                participants={participants}
-                raffleResults={raffleResults}
-                onPerformRaffle={handlePerformRaffle}
-                onGoToDelivery={() => setActiveTab('delivery')}
-              />
-            )}
+          {isGroupView ? (
+            <GroupRevealView
+              groupEventData={raffle.groupEventData}
+              pinFlowState={raffle.pinFlowState}
+              isLoadingGroup={raffle.isLoadingGroup}
+              onSelectMember={raffle.selectMember}
+              onClaimPin={raffle.claimPin}
+              onVerifyPin={raffle.verifyPin}
+              onResetFlow={raffle.resetPinFlow}
+            />
+          ) : (
+            <>
+              {activeTab === 'participants' && (
+                <ParticipantsView
+                  participants={participants}
+                  onUpdateParticipants={setParticipants}
+                  eventConfig={eventConfig}
+                  onOpenSettings={() => setIsSettingsOpen(true)}
+                  onLoadDemo={handleLoadDemo}
+                />
+              )}
+              {activeTab === 'raffle' && (
+                <RaffleDrawView
+                  participants={participants}
+                  raffleResults={raffleResults}
+                  onPerformRaffle={handlePerformRaffle}
+                  onGoToDelivery={() => setActiveTab('delivery')}
+                />
+              )}
+              {activeTab === 'delivery' && (
+                <SecretDeliveryView
+                  raffleResults={raffleResults}
+                  eventConfig={eventConfig}
+                  publishedEvent={raffle.publishedEvent}
+                  isPublishing={raffle.isPublishing}
+                  publishError={raffle.publishError}
+                  onPublishRaffle={handlePublishRaffle}
+                  getEventUrl={raffle.getEventUrl}
+                  onGoToAdmin={handleGoToAdmin}
+                  onPreviewGroup={handlePreviewGroup}
+                />
+              )}
+              {activeTab === 'games' && (
+                <AguinaldosGamesTab participants={participants} />
+              )}
+              {activeTab === 'admin' && (
+                <AdminPanel
+                  publishedEvent={raffle.publishedEvent}
+                  adminData={raffle.adminData}
+                  isAdminLoading={raffle.isAdminLoading}
+                  adminError={raffle.adminError}
+                  onLoadStatus={() => raffle.loadAdminStatus(
+                    raffle.publishedEvent.slug, raffle.publishedEvent.adminToken
+                  )}
+                  onResetPin={raffle.adminResetPin}
+                  onUnlock={raffle.adminUnlock}
+                  onClose={() => setActiveTab('delivery')}
+                  getEventUrl={raffle.getEventUrl}
+                />
+              )}
+            </>
+          )}
+        </main>
 
-            {activeTab === 'delivery' && (
-              <SecretDeliveryView
-                raffleResults={raffleResults}
-                eventConfig={eventConfig}
-                onOpenGiftModal={handleOpenGiftModal}
-                onOpenGroupPreview={handlePreviewGroupMode}
-              />
-            )}
+        {/* ── Footer ────────────────────────────────────────── */}
+        <footer className="relative z-10 border-t border-emerald-950/60 bg-[#040a10]/90 py-4 text-center safe-bottom">
+          <p className="font-festive text-sm sm:text-base text-yellow-200/80 flex items-center justify-center gap-1.5">
+            ✨ ¡Que la magia de la Navidad llene sus hogares! 🎄
+          </p>
+          <p className="text-[10px] sm:text-[11px] text-slate-500 mt-1">
+            Aguinaldo Familiar · Creado con amor navideño 🎅
+          </p>
+        </footer>
 
-            {activeTab === 'games' && (
-              <AguinaldosGamesTab participants={participants} />
-            )}
-          </>
-        )}
-      </main>
-
-      {/* Festive Footer */}
-      <footer className="relative z-10 border-t border-emerald-950/80 bg-[#07110e]/90 py-5 text-center text-xs text-slate-400">
-        <p className="flex items-center justify-center gap-1.5 font-festive text-base text-yellow-200/90">
-          ✨ ¡Que la magia de la Navidad llene sus hogares de amor y alegría! 🎄
-        </p>
-        <p className="text-[11px] text-slate-500 mt-1">
-          Aguinaldo & Amigo Secreto Familiar • Creado con amor navideño
-        </p>
-      </footer>
-
-      {/* Secret Gift Box Modal (When opened) */}
-      <GiftBoxModal
-        isOpen={isGiftModalOpen}
-        onClose={() => {
-          setIsGiftModalOpen(false);
-          if (window.location.hash.startsWith('#reveal=')) {
-            window.location.hash = '';
-          }
-        }}
-        secretData={activeSecretData}
-      />
-
-      {/* Event Settings Modal */}
-      <EventSettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        config={eventConfig}
-        onSave={setEventConfig}
-      />
-    </div>
+        {/* ── Modales ───────────────────────────────────────── */}
+        <GiftBoxModal
+          isOpen={isGiftModalOpen}
+          onClose={() => { setIsGiftModalOpen(false); if (window.location.hash.startsWith('#reveal=')) window.location.hash = ''; }}
+          secretData={giftModalData}
+        />
+        <EventSettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          config={eventConfig}
+          onSave={setEventConfig}
+        />
+      </div>
+    </>
   );
 }

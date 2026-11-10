@@ -52,9 +52,9 @@ export default function RaffleDrawView({
   return (
     <div className="max-w-3xl mx-auto space-y-8 py-4">
       {/* Central Festive Stage */}
-      <div className="relative overflow-hidden rounded-3xl p-8 md:p-12 text-center bg-gradient-to-b from-[#132d23] via-[#0e2119] to-[#1c0c11] border-2 border-christmas-gold/40 shadow-2xl">
+      <div className="relative overflow-hidden rounded-3xl p-8 md:p-12 text-center glass-card border-2 border-christmas-gold/40 shadow-2xl glow-gold">
         {/* Ambient Glows */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-christmas-gold/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-christmas-gold/15 rounded-full blur-3xl pointer-events-none animate-pulse" />
         <div className="absolute bottom-0 left-1/4 w-48 h-48 bg-christmas-red/20 rounded-full blur-2xl pointer-events-none" />
 
         {/* Tree / Gift Icon Graphic */}
@@ -70,7 +70,7 @@ export default function RaffleDrawView({
         </div>
 
         {/* Title */}
-        <h2 className="relative z-10 font-serif text-3xl md:text-5xl font-extrabold text-gold-gradient mb-3">
+        <h2 className="relative z-10 font-serif text-3xl md:text-5xl font-extrabold text-gold-gradient text-glow-pulse mb-3">
           {isDrawing
             ? '¡Mezclando los Regalos Mágicos!...'
             : raffleResults
@@ -106,11 +106,20 @@ export default function RaffleDrawView({
               className={`px-8 py-4 rounded-2xl font-bold text-lg md:text-xl shadow-2xl transition-all transform flex items-center gap-3 ${
                 !canDraw
                   ? 'bg-slate-700/60 text-slate-400 cursor-not-allowed border border-slate-600/30'
-                  : 'bg-gradient-to-r from-christmas-red via-red-600 to-christmas-red-dark hover:from-red-500 hover:to-red-700 text-white hover:scale-105 active:scale-95 shadow-red-900/60 border border-christmas-gold/40 animate-pulse-glow'
+                  : 'gradient-shine text-white hover:scale-105 active:scale-95 shadow-red-900/60 border-2 border-christmas-gold/60 animate-pulse-glow glow-red'
               }`}
             >
-              <Gift className="w-6 h-6" />
-              {isDrawing ? 'Sorteando...' : 'Iniciar Sorteo Navideño 🎁'}
+              {isDrawing ? (
+                <>
+                  <div className="christmas-spinner" />
+                  <span className="loading-dots">Sorteando</span>
+                </>
+              ) : (
+                <>
+                  <Gift className="w-6 h-6" />
+                  Iniciar Sorteo Navideño 🎁
+                </>
+              )}
             </button>
           ) : (
             <>
@@ -143,8 +152,8 @@ export default function RaffleDrawView({
 
       {/* Security & Fairness Guarantee Badges */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="p-4 rounded-2xl bg-[#0e2118]/80 border border-emerald-800/40 flex items-start gap-3">
-          <div className="p-2 rounded-xl bg-emerald-900/50 text-emerald-300">
+        <div className="glass-card rounded-2xl border border-emerald-800/40 p-4 flex items-start gap-3 stagger-in hover:border-emerald-600/60 transition-all">
+          <div className="p-2 rounded-xl bg-emerald-900/50 text-emerald-300 glow-emerald">
             <CheckCircle2 className="w-5 h-5 text-christmas-gold" />
           </div>
           <div>
@@ -155,8 +164,8 @@ export default function RaffleDrawView({
           </div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-[#0e2118]/80 border border-emerald-800/40 flex items-start gap-3">
-          <div className="p-2 rounded-xl bg-emerald-900/50 text-emerald-300">
+        <div className="glass-card rounded-2xl border border-emerald-800/40 p-4 flex items-start gap-3 stagger-in hover:border-emerald-600/60 transition-all" style={{ animationDelay: '0.1s' }}>
+          <div className="p-2 rounded-xl bg-emerald-900/50 text-emerald-300 glow-emerald">
             <ShieldCheck className="w-5 h-5 text-christmas-gold" />
           </div>
           <div>
@@ -167,8 +176,8 @@ export default function RaffleDrawView({
           </div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-[#0e2118]/80 border border-emerald-800/40 flex items-start gap-3">
-          <div className="p-2 rounded-xl bg-emerald-900/50 text-emerald-300">
+        <div className="glass-card rounded-2xl border border-emerald-800/40 p-4 flex items-start gap-3 stagger-in hover:border-emerald-600/60 transition-all" style={{ animationDelay: '0.2s' }}>
+          <div className="p-2 rounded-xl bg-emerald-900/50 text-emerald-300 glow-emerald">
             <HeartHandshake className="w-5 h-5 text-christmas-gold" />
           </div>
           <div>
