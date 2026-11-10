@@ -295,6 +295,10 @@ function RevealScreen({ result, onClose }) {
           <p className="text-[10px] text-slate-600 mt-3">
             Puedes volver cuando quieras con tu PIN para verlo de nuevo.
           </p>
+          {/* Firma sutil en el momento más especial */}
+          <p className="text-[9px] text-slate-700 mt-2 tracking-widest uppercase">
+            ✦ Hamilton Q ✦
+          </p>
         </div>
       </div>
     </div>

@@ -400,9 +400,18 @@ export default function App() {
           <p className="font-festive text-sm sm:text-base text-yellow-200/80 flex items-center justify-center gap-1.5">
             ✨ ¡Que la magia de la Navidad llene sus hogares! 🎄
           </p>
-          <p className="text-[10px] sm:text-[11px] text-slate-500 mt-1">
-            Aguinaldo Familiar · Creado con amor navideño 🎅
-          </p>
+          <div className="flex items-center justify-center gap-2 mt-2">
+            <div className="h-px w-10 bg-gradient-to-r from-transparent to-christmas-gold/40" />
+            <p className="text-[11px] text-slate-500">
+              Desarrollado por{' '}
+              <span className="font-bold text-gold-gradient bg-clip-text">
+                Hamilton Q
+              </span>
+              {' '}✦{' '}
+              <span className="text-slate-600">2026</span>
+            </p>
+            <div className="h-px w-10 bg-gradient-to-l from-transparent to-christmas-gold/40" />
+          </div>
         </footer>
 
         {/* ── Modales ───────────────────────────────────────── */}

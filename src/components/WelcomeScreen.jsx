@@ -220,6 +220,18 @@ export default function WelcomeScreen({ onEnter }) {
         <p className="mt-5 text-[11px] text-slate-500 flex items-center gap-1.5">
           <span>🔒</span> Sorteo privado y seguro · Cada quien solo ve su resultado
         </p>
+
+        {/* Firma del desarrollador */}
+        <div className="mt-4 flex items-center gap-2">
+          <div className="h-px w-8 bg-gradient-to-r from-transparent to-christmas-gold/30" />
+          <p className="text-[10px] text-slate-600 tracking-wide">
+            Desarrollado por <span
+              className="font-black text-christmas-gold/70"
+              style={{ letterSpacing: '0.05em' }}
+            >Hamilton Q</span>
+          </p>
+          <div className="h-px w-8 bg-gradient-to-l from-transparent to-christmas-gold/30" />
+        </div>
       </div>
 
       {/* Muñeco de nieve decorativo abajo */}
