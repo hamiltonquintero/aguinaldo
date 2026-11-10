@@ -6,6 +6,7 @@ import {
   ShieldCheck, RefreshCw, KeyRound, UserCheck, Delete,
 } from 'lucide-react';
 import { sound } from '../utils/sound';
+import FestiveBackground, { PanelSheen, RevealHalo } from './FestiveBackground';
 
 // ─── Colores y avatares por índice ───────────────────────────
 const MEMBER_THEMES = [
@@ -110,6 +111,9 @@ function BottomSheet({ children, onBack, title }) {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-32 bg-christmas-gold/5 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 right-0 w-48 h-48 bg-christmas-red/5 rounded-full blur-3xl pointer-events-none" />
 
+        {/* Partículas sutiles dentro del sheet */}
+        <FestiveBackground intensity="subtle" snow={false} particles={true} orbs={true} stars={true} shooting={false} floating={false} />
+
         <div className="relative z-10 p-6 pb-10 sm:pb-6">
           {children}
         </div>
@@ -139,33 +143,19 @@ function RevealScreen({ result, onClose }) {
       className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden"
       style={{ background: 'radial-gradient(ellipse 120% 100% at 50% 50%, #0d2018 0%, #060d14 50%, #0a0510 100%)' }}
     >
-      {/* Estrellas de fondo */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {Array.from({ length: 24 }).map((_, i) => (
-          <div key={i} className="absolute animate-twinkle rounded-full"
-            style={{
-              width: `${2 + (i % 3)}px`,
-              height: `${2 + (i % 3)}px`,
-              background: ['#f1b72e','#fff','#34d399','#c084fc','#60a5fa'][i % 5],
-              left: `${(i * 4.1) % 96}%`,
-              top: `${(i * 7.3) % 90}%`,
-              animationDelay: `${(i * 0.18) % 3}s`,
-              animationDuration: `${1.5 + (i % 4) * 0.4}s`,
-              opacity: 0.5,
-              filter: 'blur(0.3px)',
-              boxShadow: '0 0 6px currentColor',
-            }}
-          />
-        ))}
-      </div>
+      {/* Fondo animado épico */}
+      <FestiveBackground intensity="epic" snow={true} particles={true} orbs={true} stars={true} shooting={true} floating={false} />
+
+      {/* Aureolas expansivas desde el centro */}
+      {showName && <RevealHalo color="rgba(241,183,46,0.25)" />}
 
       {/* Resplandor central pulsante */}
       <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
         <div
-          className="w-[400px] h-[400px] rounded-full animate-pulse"
+          className="w-[500px] h-[500px] rounded-full animate-pulse"
           style={{
-            background: 'radial-gradient(circle, rgba(241,183,46,0.08) 0%, rgba(196,30,58,0.05) 50%, transparent 70%)',
-            filter: 'blur(20px)',
+            background: 'radial-gradient(circle, rgba(241,183,46,0.1) 0%, rgba(196,30,58,0.06) 50%, transparent 70%)',
+            filter: 'blur(30px)',
           }}
         />
       </div>
@@ -386,6 +376,12 @@ export default function GroupRevealView({
           boxShadow: '0 20px 60px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05)',
         }}
       >
+        {/* Fondo animado — sutil para el hero */}
+        <FestiveBackground intensity="subtle" snow={true} particles={true} orbs={true} stars={true} shooting={false} floating={true} />
+
+        {/* Barrido de luz sobre el panel */}
+        <PanelSheen />
+
         {/* Resplandores decorativos */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-48 rounded-full blur-3xl pointer-events-none"
           style={{ background: 'radial-gradient(circle, rgba(241,183,46,0.12) 0%, transparent 70%)' }}
